@@ -220,6 +220,7 @@ goreleaser-release:
 	goreleaser release --clean --fail-fast --skip-publish
 .PHONY: goreleaser-release
 
+
 # Copied from https://github.com/dgraph-io/badger/blob/main/Makefile
 
 USER_ID      = $(shell id -u)
@@ -246,3 +247,25 @@ jemalloc:
 		rm -rf /tmp/jemalloc-temp ; \
 	fi
 .PHONY: jemalloc
+
+IOS_OUT = ../ios-framework-out
+
+ios-arm64:
+	CGO_ENABLED=1 \
+	GOOS=ios \
+	GOARCH=arm64 \
+	SDK=iphoneos \
+	CC=$(PWD)/clangwrap.sh \
+	CGO_CFLAGS="-fembed-bitcode" \
+	go build -buildmode=c-archive -o $(IOS_OUT)/device/libcelestia-bridge.a ./cmd/swiftapi/main.go
+
+ios-sim-arm:
+	CGO_ENABLED=1 \
+	GOOS=ios \
+	GOARCH=arm64 \
+	SDK=iphonesimulator \
+	CC=$(PWD)/clangwrap.sh \
+	go build -buildmode=c-archive -o $(IOS_OUT)/sim/libcelestia-bridge.a ./cmd/swiftapi/main.go
+
+ios: ios-arm64 ios-sim-arm
+	cp $(IOS_OUT)/device/libcelestia-bridge.h $(IOS_OUT)/headers/libcelestia-bridge.h
