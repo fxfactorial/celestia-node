@@ -2,6 +2,7 @@ package swiftbinapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"sync/atomic"
@@ -18,6 +19,13 @@ var (
 	bridgeLog        = slog.New(slog.NewTextHandler(os.Stderr, nil))
 	loggingMsgIn     atomic.Bool
 	loggingMsgOut    atomic.Bool
+)
+
+const (
+	CMD_INIT_NODE      = "load_celestia_node"
+	CMD_START_NODE     = "start_celestia_node"
+	CMD_STOP_NODE      = "stop_celestia_node"
+	RUN_RECEIVE_HEADER = "celestia_new_header"
 )
 
 func SetupListen(enableLogging bool, errorCB func(string)) {
@@ -39,7 +47,14 @@ func SetupListen(enableLogging bool, errorCB func(string)) {
 			}
 
 			switch c.Cmd {
-
+			case CMD_INIT_NODE:
+				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
+			case CMD_START_NODE:
+				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
+			case CMD_STOP_NODE:
+				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
+			default:
+				errorCB(fmt.Sprintf("Unknown command %s", c.Cmd))
 			}
 		}
 	}()
