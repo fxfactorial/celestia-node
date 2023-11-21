@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"sync/atomic"
+
+	"github.com/celestiaorg/celestia-node/nodebuilder"
+	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 )
 
 type BridgeMessaging struct {
@@ -28,6 +31,10 @@ const (
 	RUN_RECEIVE_HEADER = "celestia_new_header"
 )
 
+type BridgeCmdLoadNode struct {
+	StorePath string
+}
+
 func SetupListen(enableLogging bool, errorCB func(string)) {
 	CommunicationIn = make(chan string)
 	loggingMsgIn.Store(enableLogging)
@@ -48,6 +55,23 @@ func SetupListen(enableLogging bool, errorCB func(string)) {
 
 			switch c.Cmd {
 			case CMD_INIT_NODE:
+				var l BridgeCmdLoadNode
+				if err := json.Unmarshal(c.Payload, &l); err != nil {
+					errorCB(err.Error())
+					continue
+				}
+
+				cfg := nodebuilder.DefaultConfig(node.Light)
+				// get it from documents?
+				storePath := l.StorePath
+
+				if err := nodebuilder.Init(
+					*cfg, storePath, node.Light,
+				); err != nil {
+					errorCB(err.Error())
+					continue
+				}
+
 				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
 			case CMD_START_NODE:
 				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
