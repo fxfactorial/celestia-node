@@ -257,7 +257,7 @@ ios-arm64:
 	SDK=iphoneos \
 	CC=$(PWD)/clangwrap.sh \
 	CGO_CFLAGS="-fembed-bitcode" \
-	go build -buildmode=c-archive -o $(IOS_OUT)/device/libcelestia-bridge.a ./cmd/swiftapi/main.go
+	go build -buildmode=c-archive -tags ios -o $(IOS_OUT)/device/libcelestia-bridge.a ./cmd/swiftapi/main.go
 
 ios-sim-arm:
 	CGO_ENABLED=1 \
@@ -265,7 +265,7 @@ ios-sim-arm:
 	GOARCH=arm64 \
 	SDK=iphonesimulator \
 	CC=$(PWD)/clangwrap.sh \
-	go build -buildmode=c-archive -o $(IOS_OUT)/sim/libcelestia-bridge.a ./cmd/swiftapi/main.go
+	go build -buildmode=c-archive -tags nowatchdog -o $(IOS_OUT)/sim/libcelestia-bridge.a ./cmd/swiftapi/main.go
 
 ios: ios-arm64 ios-sim-arm
 	cp $(IOS_OUT)/device/libcelestia-bridge.h $(IOS_OUT)/headers/libcelestia-bridge.h

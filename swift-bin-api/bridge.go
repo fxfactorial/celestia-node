@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
+	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 )
 
 type BridgeMessaging struct {
@@ -61,19 +62,36 @@ func SetupListen(enableLogging bool, errorCB func(string)) {
 					continue
 				}
 
-				cfg := nodebuilder.DefaultConfig(node.Light)
-				// get it from documents?
-				storePath := l.StorePath
+				// cfg := nodebuilder.DefaultConfig(node.Light)
+				// // get it from documents?
+				// storePath := l.StorePath
 
-				if err := nodebuilder.Init(
-					*cfg, storePath, node.Light,
-				); err != nil {
+				// if err := nodebuilder.Init(
+				// 	*cfg, storePath, node.Light,
+				// ); err != nil {
+				// 	errorCB(err.Error())
+				// 	continue
+				// }
+
+				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
+			case CMD_START_NODE:
+				network := p2p.DefaultNetwork
+				// cfg := nodebuilder.DefaultConfig(node.Light)
+				nd, err := nodebuilder.NewStripped(node.Light, network, nil, nil)
+				if err != nil {
 					errorCB(err.Error())
 					continue
 				}
 
-				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
-			case CMD_START_NODE:
+				// go func() {
+				// 	if err := nd.Start(context.Background()); err != nil {
+				// 		if err != nil {
+				// 			errorCB(err.Error())
+				// 			return
+				// 		}
+				// 	}
+				// }()
+
 				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
 			case CMD_STOP_NODE:
 				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
