@@ -353,3 +353,4 @@ replace (
 )
 
 replace github.com/dgraph-io/badger/v4 => github.com/celestiaorg/badger/v4 v4.0.0-20231125230536-2b9e13346f75
+replace github.com/elastic/gosigar => ../gosigar
