@@ -76,6 +76,16 @@ type Node struct {
 	start, stop lifecycleFunc
 }
 
+func NewStripped(
+	tp node.Type,
+	network p2p.Network,
+	cfg *Config,
+	store Store,
+) (*Node, error) {
+	opts := []fx.Option{ConstructModuleStripped(tp, network, cfg, store)}
+	return newNode(opts...)
+}
+
 // New assembles a new Node with the given type 'tp' over Store 'store'.
 func New(tp node.Type, network p2p.Network, store Store, options ...fx.Option) (*Node, error) {
 	cfg, err := store.Config()
