@@ -229,6 +229,8 @@ func SetupListen(enableLogging bool, errorCB func(string)) {
 		},
 	}
 
+	var runningNode *nodebuilder.Node
+
 	go func() {
 
 		for cmd := range CommunicationIn {
@@ -271,6 +273,7 @@ func SetupListen(enableLogging bool, errorCB func(string)) {
 					errorCB(err.Error())
 					continue
 				}
+				runningNode = nd
 
 				go func() {
 					if err := nd.Start(context.Background()); err != nil {
@@ -283,6 +286,7 @@ func SetupListen(enableLogging bool, errorCB func(string)) {
 
 				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
 			case CMD_STOP_NODE:
+				runningNode.Stop(context.Background())
 				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
 			default:
 				errorCB(fmt.Sprintf("Unknown command %s", c.Cmd))
@@ -295,7 +299,7 @@ func SetupReply(enableLogging bool, cb func(string)) {
 	CommunicationOut = make(chan BridgeMessaging)
 	loggingMsgOut.Store(enableLogging)
 
-	das.SampledHeaderJSON = make(chan []byte)
+	das.SampledHeaderJSON = make(chan []byte, 1024)
 	go func() {
 		for sample := range das.SampledHeaderJSON {
 			CommunicationOut <- BridgeMessaging{Cmd: RUN_NEW_SAMPLE, Payload: sample}
