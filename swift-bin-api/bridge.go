@@ -6,16 +6,19 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"sync/atomic"
 
-	"github.com/alphadose/haxmap"
+	"github.com/celestiaorg/celestia-node/das"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	dsq "github.com/ipfs/go-datastore/query"
+	"github.com/jbenet/goprocess"
 )
 
 type BridgeMessaging struct {
@@ -37,6 +40,7 @@ const (
 	CMD_START_NODE     = "start_celestia_node"
 	CMD_STOP_NODE      = "stop_celestia_node"
 	RUN_RECEIVE_HEADER = "celestia_new_header"
+	RUN_NEW_SAMPLE     = "das_new_sample"
 )
 
 type BridgeCmdLoadNode struct {
@@ -52,64 +56,106 @@ type stubbedKeystore struct {
 }
 
 type wrappedMapDatastore struct {
-	backing *haxmap.Map[string, []byte]
-	// *datastore.MapDatastore
-	// sync.Mutex
+	// backing *haxmap.Map[string, []byte]
+	*datastore.MapDatastore
+	sync.Mutex
 }
 
 func (w *wrappedMapDatastore) Put(ctx context.Context, key datastore.Key, value []byte) error {
-	w.backing.Set(key.String(), value)
-	return nil
-	// w.Lock()
-	// defer w.Unlock()
-	// return w.MapDatastore.Put(ctx, key, value)
+	// w.backing.Set(key.String(), value)
+	// return nil
+	w.Lock()
+	defer w.Unlock()
+	return w.MapDatastore.Put(ctx, key, value)
 }
 
 func (w *wrappedMapDatastore) Get(ctx context.Context, key datastore.Key) ([]byte, error) {
-	payload, ok := w.backing.Get(key.String())
-	_ = ok
-	return payload, nil
-	// w.Lock()
-	// defer w.Unlock()
-	// return w.MapDatastore.Get(ctx, key)
+	// payload, ok := w.backing.Get(key.String())
+	// _ = ok
+	// return payload, nil
+	w.Lock()
+	defer w.Unlock()
+	return w.MapDatastore.Get(ctx, key)
+}
+
+type stubbedQueryResult struct {
+	//
+
+}
+
+// the query these Results correspond to
+func (q *stubbedQueryResult) Query() query.Query {
+	return query.Query{}
+}
+
+// returns a channel to wait for the next result
+func (q *stubbedQueryResult) Next() <-chan query.Result {
+	return nil
+}
+
+// blocks and waits to return the next result, second parameter returns false when results are exhausted
+func (q *stubbedQueryResult) NextSync() (query.Result, bool) {
+	return query.Result{}, false
+}
+
+// waits till processing finishes, returns all entries at once.
+func (q *stubbedQueryResult) Rest() ([]query.Entry, error) {
+	return nil, nil
+}
+
+// client may call Close to signal early exit
+func (q *stubbedQueryResult) Close() error {
+	return nil
+}
+
+// Process returns a goprocess.Process associated with these results.
+// most users will not need this function (Close is all they want),
+// but it's here in case you want to connect the results to other
+// goprocess-friendly things.
+func (q *stubbedQueryResult) Process() goprocess.Process {
+	return nil
 }
 
 func (w *wrappedMapDatastore) Query(ctx context.Context, q dsq.Query) (dsq.Results, error) {
-	return nil, nil
-	// w.Lock()
-	// defer w.Unlock()
-	// return w.MapDatastore.Query(ctx, q)
+	// return &stubbedQueryResult{}, nil
+	w.Lock()
+	defer w.Unlock()
+	return w.MapDatastore.Query(ctx, q)
+}
+
+func (s *wrappedMapDatastore) Commit(ctx context.Context) error {
+	return nil
 }
 
 func (d *wrappedMapDatastore) Batch(ctx context.Context) (datastore.Batch, error) {
-	return nil, nil
+	return d, nil
 }
 
 func (d *wrappedMapDatastore) Close() error {
 	return nil
 }
 
-func (d *wrappedMapDatastore) GetSize(ctx context.Context, key datastore.Key) (size int, err error) {
-	return int(d.backing.Len()), nil
-}
+// func (d *wrappedMapDatastore) GetSize(ctx context.Context, key datastore.Key) (size int, err error) {
+// 	return int(d.backing.Len()), nil
+// }
 
-func (d *wrappedMapDatastore) Sync(ctx context.Context, prefix datastore.Key) error {
-	return nil
-}
+// func (d *wrappedMapDatastore) Sync(ctx context.Context, prefix datastore.Key) error {
+// 	return nil
+// }
 
-func (d *wrappedMapDatastore) Delete(ctx context.Context, key datastore.Key) (err error) {
-	d.backing.Del(key.String())
-	return nil
-}
+// func (d *wrappedMapDatastore) Delete(ctx context.Context, key datastore.Key) (err error) {
+// 	d.backing.Del(key.String())
+// 	return nil
+// }
 
 func (w *wrappedMapDatastore) Has(
 	ctx context.Context, key datastore.Key,
 ) (exists bool, err error) {
-	_, had := w.backing.Get(key.String())
-	return had, nil
-	// w.Lock()
-	// defer w.Unlock()
-	// return w.MapDatastore.Has(ctx, key)
+	// _, had := w.backing.Get(key.String())
+	// return had, nil
+	w.Lock()
+	defer w.Unlock()
+	return w.MapDatastore.Has(ctx, key)
 }
 
 func (ks *stubbedKeystore) Put(keystore.KeyName, keystore.PrivKey) error {
@@ -177,8 +223,8 @@ func SetupListen(enableLogging bool, errorCB func(string)) {
 	stubStore := &stubbedStore{
 		&stubbedKeystore{
 			ds: &wrappedMapDatastore{
-				backing: haxmap.New[string, []byte](uintptr(20)),
-				// MapDatastore: datastore.NewMapDatastore(),
+				// backing: haxmap.New[string, []byte](uintptr(20)),
+				MapDatastore: datastore.NewMapDatastore(),
 			},
 		},
 	}
@@ -218,7 +264,7 @@ func SetupListen(enableLogging bool, errorCB func(string)) {
 
 				CommunicationOut <- BridgeMessaging{Cmd: c.Cmd}
 			case CMD_START_NODE:
-				network := p2p.DefaultNetwork
+				network := p2p.Mainnet
 				cfg := nodebuilder.DefaultConfig(node.Light)
 				nd, err := nodebuilder.NewStripped(node.Light, network, cfg, stubStore)
 				if err != nil {
@@ -248,6 +294,13 @@ func SetupListen(enableLogging bool, errorCB func(string)) {
 func SetupReply(enableLogging bool, cb func(string)) {
 	CommunicationOut = make(chan BridgeMessaging)
 	loggingMsgOut.Store(enableLogging)
+
+	das.SampledHeaderJSON = make(chan []byte)
+	go func() {
+		for sample := range das.SampledHeaderJSON {
+			CommunicationOut <- BridgeMessaging{Cmd: RUN_NEW_SAMPLE, Payload: sample}
+		}
+	}()
 
 	go func() {
 
