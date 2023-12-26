@@ -76,6 +76,7 @@ require (
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/alphadose/haxmap v1.3.1 // indirect
 	github.com/bits-and-blooms/bitset v1.7.0 // indirect
 	github.com/celestiaorg/quantum-gravity-bridge/v2 v2.1.2 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
@@ -353,7 +354,8 @@ replace (
 )
 
 replace github.com/dgraph-io/badger/v4 => github.com/celestiaorg/badger/v4 v4.0.0-20231125230536-2b9e13346f75
+
 replace (
-	github.com/elastic/gosigar => ../gosigar
 	github.com/99designs/keyring => ../keyring
+	github.com/elastic/gosigar => ../gosigar
 )

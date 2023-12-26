@@ -8,12 +8,14 @@ import (
 	"os"
 	"sync/atomic"
 
+	"github.com/alphadose/haxmap"
 	"github.com/celestiaorg/celestia-node/libs/keystore"
 	"github.com/celestiaorg/celestia-node/nodebuilder"
 	"github.com/celestiaorg/celestia-node/nodebuilder/node"
 	"github.com/celestiaorg/celestia-node/nodebuilder/p2p"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/ipfs/go-datastore"
+	dsq "github.com/ipfs/go-datastore/query"
 )
 
 type BridgeMessaging struct {
@@ -30,6 +32,7 @@ var (
 )
 
 const (
+	// really to setup datastore directory properly, come back to impl properly
 	CMD_INIT_NODE      = "load_celestia_node"
 	CMD_START_NODE     = "start_celestia_node"
 	CMD_STOP_NODE      = "stop_celestia_node"
@@ -45,7 +48,68 @@ type stubbedStore struct {
 }
 
 type stubbedKeystore struct {
-	simple map[string]any
+	ds *wrappedMapDatastore
+}
+
+type wrappedMapDatastore struct {
+	backing *haxmap.Map[string, []byte]
+	// *datastore.MapDatastore
+	// sync.Mutex
+}
+
+func (w *wrappedMapDatastore) Put(ctx context.Context, key datastore.Key, value []byte) error {
+	w.backing.Set(key.String(), value)
+	return nil
+	// w.Lock()
+	// defer w.Unlock()
+	// return w.MapDatastore.Put(ctx, key, value)
+}
+
+func (w *wrappedMapDatastore) Get(ctx context.Context, key datastore.Key) ([]byte, error) {
+	payload, ok := w.backing.Get(key.String())
+	_ = ok
+	return payload, nil
+	// w.Lock()
+	// defer w.Unlock()
+	// return w.MapDatastore.Get(ctx, key)
+}
+
+func (w *wrappedMapDatastore) Query(ctx context.Context, q dsq.Query) (dsq.Results, error) {
+	return nil, nil
+	// w.Lock()
+	// defer w.Unlock()
+	// return w.MapDatastore.Query(ctx, q)
+}
+
+func (d *wrappedMapDatastore) Batch(ctx context.Context) (datastore.Batch, error) {
+	return nil, nil
+}
+
+func (d *wrappedMapDatastore) Close() error {
+	return nil
+}
+
+func (d *wrappedMapDatastore) GetSize(ctx context.Context, key datastore.Key) (size int, err error) {
+	return int(d.backing.Len()), nil
+}
+
+func (d *wrappedMapDatastore) Sync(ctx context.Context, prefix datastore.Key) error {
+	return nil
+}
+
+func (d *wrappedMapDatastore) Delete(ctx context.Context, key datastore.Key) (err error) {
+	d.backing.Del(key.String())
+	return nil
+}
+
+func (w *wrappedMapDatastore) Has(
+	ctx context.Context, key datastore.Key,
+) (exists bool, err error) {
+	_, had := w.backing.Get(key.String())
+	return had, nil
+	// w.Lock()
+	// defer w.Unlock()
+	// return w.MapDatastore.Has(ctx, key)
 }
 
 func (ks *stubbedKeystore) Put(keystore.KeyName, keystore.PrivKey) error {
@@ -89,7 +153,7 @@ func (s *stubbedStore) Keystore() (keystore.Keystore, error) {
 
 // Datastore provides a Datastore - a KV store for arbitrary data to be stored on disk.
 func (s *stubbedStore) Datastore() (datastore.Batching, error) {
-	return nil, nil
+	return s.stubbedKS.ds, nil
 }
 
 // Config loads the stored Node config.
@@ -112,7 +176,10 @@ func SetupListen(enableLogging bool, errorCB func(string)) {
 	loggingMsgIn.Store(enableLogging)
 	stubStore := &stubbedStore{
 		&stubbedKeystore{
-			simple: map[string]any{},
+			ds: &wrappedMapDatastore{
+				backing: haxmap.New[string, []byte](uintptr(20)),
+				// MapDatastore: datastore.NewMapDatastore(),
+			},
 		},
 	}
 
