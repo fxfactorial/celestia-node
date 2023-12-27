@@ -103,14 +103,17 @@ func (w *worker) run(ctx context.Context, timeout time.Duration, resultCh chan<-
 	select {
 	case resultCh <- w.state.result:
 		if SampledHeaderJSON != nil {
-			encoded, _ := json.Marshal(map[string]any{
+			encoded, err := json.MarshalIndent(map[string]any{
 				"header":       w.state.result.header,
 				"job-type":     w.state.jobType,
 				"to":           w.state.curr,
 				"errors-count": len(w.state.failed),
 				"finished":     time.Since(jobStart).String(),
-			})
-			SampledHeaderJSON <- encoded
+			}, " ", " ")
+			if err == nil {
+				fmt.Println("Dump", string(encoded))
+				SampledHeaderJSON <- encoded
+			}
 		}
 
 	case <-ctx.Done():
